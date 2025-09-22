@@ -268,21 +268,21 @@ function WaterParameters() {
                     : "Dissolved Oxygen"}
                 </h2>
                 <h3
-                  style={colorCode(param, readings?.[param])}
+                  style={colorCode(param, readings?.[param].current)}
                   className="px-3 py-1 rounded-lg text-white text-[clamp(0.7rem,0.9vw,0.9rem)]"
                 >
-                  {statusText(param, readings?.[param])}
+                  {statusText(param, readings?.[param].current)}
                 </h3>
               </section>
               <p
                 className="text-center font-bold text-[clamp(35px,2.5vw,340px)] flex items-center justify-center flex-1"
-                style={colorCode(param, readings?.[param], 1)}
+                style={colorCode(param, readings?.[param].current, 1)}
               >
                 {param === "fishBehavior"
-                  ? readings?.fishBehavior <= 3
+                  ? readings?.fishBehavior.current <= 3
                     ? "Normal"
                     : "Above Normal"
-                  : readings?.[param]}{" "}
+                  : readings?.[param].current}{" "}
                 {param === "temperature"
                   ? "°C"
                   : param === "ammonia"
@@ -294,7 +294,7 @@ function WaterParameters() {
                 {param === "pH" && "Optimal Range: 7.0 - 7.5"}
                 {param === "temperature" && "Optimal Range: 24 - 27°C"}
                 {param === "fishBehavior" &&
-                  `${readings?.fishBehavior} detections/min of Surface Respiration`}
+                  `${readings?.fishBehavior.current} detections/min of Surface Respiration`}
               </h3>
             </div>
           ))}
@@ -334,7 +334,7 @@ function WaterParameters() {
   );
 }
 
-export default WaterParameters;
+export default WaterParameters; 
 
 // Function for styles (color code)
 // Function for styles (color code)

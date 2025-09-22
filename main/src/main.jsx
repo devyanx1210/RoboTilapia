@@ -13,6 +13,7 @@ import SignupPage from "./components/SignupPage.jsx";
 import LoginPage from "./components/LoginPage.jsx";
 import WaterParameters from "./components/WaterParameters.jsx";
 import FeedingManagement from "./components/FeedingManagement.jsx";
+import SettingsPage from "./components/Settings.jsx";
 // import SettingsPage from "./components/SettingsPage.jsx";
 import Settings from "./components/Settings.jsx";
 const router = createBrowserRouter([

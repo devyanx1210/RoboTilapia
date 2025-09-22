@@ -61,7 +61,7 @@ function FeedingManagement() {
       feedSched.feedAmount >= 1
     ) {
       return alert("Please enter a valid feed amount between 0.01 and 0.99 kg");
-    }
+    } 
     addSchedule(feedSched.feedSched, feedSched.feedAmount);
     setFeedSched({ feedSched: "", feedAmount: 0 });
   };
@@ -144,12 +144,12 @@ function FeedingManagement() {
               </h2>
               <p
                 className="flex-1 flex items-center justify-center text-[clamp(50px,4vw,60px)] font-extrabold"
-                style={colorCode(readings?.feedLevel)}
+                style={colorCode(readings?.feedLevel.current)}
               >
-                {readings?.feedLevel}%
+                {readings?.feedLevel.current}%
               </p>
               <p className="text-center text-[clamp(15px,1vw,20px)]">
-                {refillMessage(readings?.feedLevel)}
+                {refillMessage(readings?.feedLevel.current)}
               </p>
             </div>
 
