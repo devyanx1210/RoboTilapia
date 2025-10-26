@@ -49,6 +49,33 @@ export function useReadDatabase(path = "/machines/machine0") {
   return { readings, loading };
 }
 
+// ------------------------Water Parameter Analyics-------------------
+export function useAnalyticsData() {
+  const [analytics, setAnalytics] = useState(null);
+
+  useEffect(() => {
+    const db = getDatabase(app);
+    const now = new Date();
+    const year = now.getFullYear();
+    const weekNumber = Math.ceil(
+      ((now - new Date(year, 0, 1)) / 86400000 +
+        new Date(year, 0, 1).getDay() +
+        1) /
+        7
+    );
+    const path = `/analytics/week-${year}-${weekNumber}`;
+
+    const dbRef = ref(db, path);
+    const unsub = onValue(dbRef, (snapshot) => {
+      setAnalytics(snapshot.val());
+    });
+
+    return () => unsub();
+  }, []);
+
+  return analytics;
+}
+
 // ---------------------- FEEDING SCHEDULE HOOKS ----------------------
 
 // 🔹 Add a new custom feeding schedule
@@ -67,7 +94,7 @@ export function useAddSchedule(machineId = "machine0") {
         schedId: schedKey, // store the encrypted key as ID
         time,
         amount,
-        isActive: true,
+        isActive: false,
         isDeleted: false,
       });
 
@@ -97,6 +124,56 @@ export function useUpdateSchedule(machineId = "machine0") {
     }
   };
   return { updateSchedule };
+}
+
+// 🔹 Save operation details (overwrite or create new data)
+export function useUpdateOperationDetails(machineId = "machine0") {
+  const updateOperationDetails = async (operationDetails) => {
+    try {
+      const db = getDatabase(app);
+
+      await update(
+        ref(db, `/machines/${machineId}/operationDetails`),
+        operationDetails
+      );
+      console.log("Operation details saved successfully for:", machineId);
+    } catch (error) {
+      console.error("Error saving operation details:", error);
+    }
+  };
+  return { updateOperationDetails };
+}
+
+// Save operation details
+export function useSaveOperationDetails(machineId = "machine0") {
+  const saveOperationDetails = async (operationDetails) => {
+    try {
+      const db = getDatabase(app);
+      await set(
+        ref(db, `/machines/${machineId}/operationDetails`),
+        operationDetails
+      );
+      console.log("Operation details saved successfully for:", machineId);
+    } catch (error) {
+      console.error("Error saving operation details:", error);
+    }
+  };
+
+  return { saveOperationDetails };
+}
+
+// Delete Operation Details
+export function usedeleteOperationDetails(machineId = "machine0") {
+  const deleteOperationDetails = async () => {
+    try {
+      const db = getDatabase(app);
+      await remove(ref(db, `/machines/${machineId}/operationDetails`));
+      console.log("Operation details deleted for:", machineId);
+    } catch (error) {
+      console.error("Error deleting operation details:", error);
+    }
+  };
+  return { deleteOperationDetails };
 }
 
 // 🔹 Soft delete a schedule (set isDeleted = true)

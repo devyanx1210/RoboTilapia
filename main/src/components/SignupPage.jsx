@@ -41,7 +41,7 @@ export default function SignupPage() {
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
         flex flex-col items-center justify-center gap-4
-        min-w-[300px] max-w-[500px] min-h-[600px] p-8
+        min-w-[300px] max-w-[500px] min-h-[600px] p-5
         rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.3)]
         bg-white/10 backdrop-blur-lg z-50 animate-fade-in"
       >
@@ -155,7 +155,8 @@ export default function SignupPage() {
           {/* Login Link */}
           <Link to="/login">
             <p className="text-white text-sm mt-2 hover:text-cyan-300 transition">
-              Already have an account? <a className="text-cyan-400">Login here</a>
+              Already have an account?{" "}
+              <a className="text-cyan-400">Login here</a>
             </p>
           </Link>
 

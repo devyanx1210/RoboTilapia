@@ -1,21 +1,24 @@
 import React from "react";
 import DeleteBtn from "../assets/delete-btn.png";
-import "../Dashboard.css";
 import { Trash2 } from "lucide-react";
 
 function FeedingSchedule({ id, sched, onToggle, onSoftDelete, onHardDelete }) {
   return (
     <div
       id={`feeding-schedule-${id}`}
-      className="feeding-schedule flex items-center justify-between bg-gray-200/60 rounded-2xl p-2 m-2 w-[100%] h-[clamp(80px,17vh,300px)]"
+      className="feeding-schedule flex items-center justify-between bg-gray-200/60 rounded-2xl p-2 m-2 w-[100%] h-[clamp(80px,17vh,100px)]"
     >
       {/* Left side: toggle + time/amount */}
       <div className="flex items-center w-[70%] ml-2">
         {/* Toggle switch */}
         <label className="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" className="sr-only peer" />
+          <input
+            onClick={() => onToggle(id, { isActive: !sched.isActive })}
+            type="checkbox"
+            className="sr-only peer"
+          />
           <div
-            className="
+            className="  
       group peer 
       bg-gray-300 
       rounded-full 
@@ -53,7 +56,7 @@ function FeedingSchedule({ id, sched, onToggle, onSoftDelete, onHardDelete }) {
         onClick={() => onHardDelete(id)}
         className="mr-2 p-2 rounded-lg hover:bg-red-100 hover:scale-110 transition"
       >
-        <Trash2 className="h-6 w-6 navy-blue-text" />
+        <Trash2 className="h-[clamp(5px,3h,30px)] -[clamp(5px,2.6vh,3px)] navy-blue-text" />
       </button>
     </div>
   );

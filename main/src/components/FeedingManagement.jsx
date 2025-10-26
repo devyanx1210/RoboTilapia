@@ -2,112 +2,216 @@ import React, { useEffect, useState } from "react";
 import FeedingSchedule from "./FeedingSchedule.jsx";
 import { useOutletContext } from "react-router-dom";
 import "../index.css";
-
-// Assets
-import feedLevel from "/src/assets/monitoring-icons/feed-level.png";
-import feedSchedInput from "/src/assets/monitoring-icons/feed-sched-input.png";
-import feedSchedIcon from "/src/assets/monitoring-icons/feeding-sched.png";
-import nextFeedSched from "/src/assets/monitoring-icons/next-feed-sched.png";
-
 import {
-  Gauge, // for Feed Level
-  Clock, // for Feed Schedule Status
-  PlusCircle, // for Feed Input
-  ListChecks, // for Feeding Schedule
+  Gauge,
+  Clock,
+  PlusCircle,
+  ListChecks,
   AlertTriangle,
   Info,
   CheckCircle,
-  Trash2,
+  Edit3,
+  Save,
+  Lightbulb,
 } from "lucide-react";
-
 import {
   useReadDatabase,
   useAddSchedule,
   useUpdateSchedule,
   useSoftDeleteSchedule,
   useDeleteSchedule,
+  useUpdateOperationDetails,
+  usedeleteOperationDetails,
+  useSaveOperationDetails,
 } from "./utils.jsx";
+import FeedingAerationSettings from "./FeedingAerationSettings.jsx";
 
 function FeedingManagement() {
   const { readings } = useOutletContext();
+
   const defaultFeedingSchedule = [
     { schedId: 1, time: "7:30", amount: 0.5 },
     { schedId: 2, time: "16:30", amount: 0.5 },
   ];
 
-  // 🔹 Get schedules directly from DB
   const feedingSchedules = useReadDatabase(
     "/machines/machine0/feedingSched/custom"
   );
-  // const defaultFeedSchedules = useReadDatabase(
-  //   "/machines/machine0/feedingSched/default"
-  // );
-  console.log(feedingSchedules.readings);
-
+  console.log(feedingSchedules);
   const { addSchedule } = useAddSchedule("machine0");
   const { updateSchedule } = useUpdateSchedule("machine0");
   const { softDeleteSchedule } = useSoftDeleteSchedule("machine0");
   const { deleteSchedule } = useDeleteSchedule("machine0");
-  const [feedSched, setFeedSched] = useState({ feedSched: "", feedAmount: 0 });
+  const { updateOperationDetails } = useUpdateOperationDetails("machine0");
+  const { deleteOperationDetails } = usedeleteOperationDetails("machine0");
+  const { saveOperationDetails } = useSaveOperationDetails("machine0");
 
-  // ✅ Add schedule
-  const handleAddSchedule = (e) => {
-    e.preventDefault();
-    const { feedAmount } = feedSched;
-    if (
-      !feedSched.feedSched ||
-      !feedSched.feedAmount ||
-      feedSched.feedAmount <= 0 ||
-      feedSched.feedAmount >= 1
-    ) {
-      return alert("Please enter a valid feed amount between 0.01 and 0.99 kg");
-    } 
-    addSchedule(feedSched.feedSched, feedSched.feedAmount);
-    setFeedSched({ feedSched: "", feedAmount: 0 });
-  };
+  const [feedSched, setFeedSched] = useState({
+    feedSched: "",
+    feedAmount: "",
+  });
+  const [operationDetails, setOperationDetails] = useState({
+    numberOfFish: "",
+    fishStage: "",
+    feedSize: "",
+    feedShape: "",
+    totalFeedUsed: "",
+    stockingWeight: "",
+    harvestWeight: "",
+    fcr: "",
+    pondLength: "",
+    pondWidth: "",
+    pondDepth: "",
+    aerationDuration: "",
+  });
+  console.log(operationDetails);
 
-  const handleToggle = (schedId, currentStatus) => {
-    updateSchedule(schedId, { isActive: !currentStatus });
-  };
-
-  const handleSoftDeleteSched = (schedId) => {
-    softDeleteSchedule(schedId);
-  };
-
-  const handleHardDeleteSched = (schedId) => {
-    deleteSchedule(schedId);
-  };
-
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [schedArr, setSchedArr] = useState([]);
-
-  useEffect(() => {
-    if (feedingSchedules.readings) {
-      setSchedArr(Object.values(feedingSchedules.readings));
-    }
-  }, [feedingSchedules.readings]);
-
-  // Count of active and deleted schedules
   const [count, setCount] = useState({ activeCount: 0, deletedCount: 0 });
 
+  // Auto-calc FCR: Total Feed Used / (Harvest Weight - Stocking Weight)
   useEffect(() => {
-    let active = 0;
-    let deleted = 0;
+    const totalFeed = parseFloat(operationDetails.totalFeedUsed);
+    const harvest = parseFloat(operationDetails.harvestWeight);
+    const stock = parseFloat(operationDetails.stockingWeight);
+    if (totalFeed > 0 && harvest > stock) {
+      const calc = (totalFeed / (harvest - stock)).toFixed(2);
+      setOperationDetails((prev) => ({ ...prev, fcr: calc }));
+    } else {
+      setOperationDetails((prev) => ({ ...prev, fcr: "" }));
+    }
+  }, [
+    operationDetails.totalFeedUsed,
+    operationDetails.harvestWeight,
+    operationDetails.stockingWeight,
+  ]);
 
-    schedArr.forEach((sched) => {
-      if (sched.isDeleted) deleted++;
-      if (sched.isActive) active++;
+  // Auto-calc Aeration Duration based on Pond Volume (m³)
+  useEffect(() => {
+    const L = parseFloat(operationDetails.pondLength);
+    const W = parseFloat(operationDetails.pondWidth);
+    const D = parseFloat(operationDetails.pondDepth);
+    if (L > 0 && W > 0 && D > 0) {
+      const volume = L * W * D;
+      const duration = Math.max(2, Math.min((volume / 50).toFixed(1), 12));
+      setOperationDetails((prev) => ({ ...prev, aerationDuration: duration }));
+    } else {
+      setOperationDetails((prev) => ({ ...prev, aerationDuration: "" }));
+    }
+  }, [
+    operationDetails.pondLength,
+    operationDetails.pondWidth,
+    operationDetails.pondDepth,
+  ]);
+
+  const handleAddSchedule = (e) => {
+    e.preventDefault();
+    const { feedSched: time, feedAmount } = feedSched;
+    if (!time || !feedAmount || feedAmount <= 0 || feedAmount >= 1)
+      return alert("Please enter a valid feed amount between 0.01 and 0.99 kg");
+
+    addSchedule(time, feedAmount);
+    setFeedSched({ feedSched: "", feedAmount: "" });
+  };
+
+  const handleClearAll = () =>
+    setOperationDetails({
+      feedSched: "",
+      feedAmount: "",
+      numberOfFish: "",
+      fishStage: "",
+      feedSize: "",
+      feedShape: "",
+      totalFeedUsed: "",
+      stockingWeight: "",
+      harvestWeight: "",
+      fcr: "",
+      pondLength: "",
+      pondWidth: "",
+      pondDepth: "",
+      aerationDuration: "",
     });
 
+  useEffect(() => {
+    if (feedingSchedules.readings)
+      setSchedArr(Object.values(feedingSchedules.readings));
+  }, [feedingSchedules.readings]);
+
+  useEffect(() => {
+    let active = 0,
+      deleted = 0;
+    schedArr.forEach((s) => {
+      if (s.isDeleted) deleted++;
+      if (s.isActive) active++;
+    });
     setCount({ activeCount: active, deletedCount: deleted });
   }, [schedArr]);
 
-  console.log(schedArr);
-  console.log(feedingSchedules.readings);
-  console.log(readings);
+  const hasAdvanced =
+    operationDetails.numberOfFish ||
+    operationDetails.feedSize ||
+    operationDetails.feedShape ||
+    operationDetails.pondLength ||
+    operationDetails.pondWidth ||
+    operationDetails.pondDepth;
 
+  const summaryMessage = hasAdvanced ? (
+    <div className="space-y-1 text-sm">
+      <p>
+        <strong>Fish Count:</strong> {operationDetails.numberOfFish || "--"} (
+        {operationDetails.fishStage || "N/A"})
+      </p>
+      <p>
+        <strong>Feed Type:</strong> {operationDetails.feedSize || "--"} /{" "}
+        {operationDetails.feedShape || "--"}
+      </p>
+      <p>
+        <strong>Pond Dimensions:</strong>{" "}
+        {operationDetails.pondLength &&
+        operationDetails.pondWidth &&
+        operationDetails.pondDepth
+          ? `${operationDetails.pondLength}m × ${operationDetails.pondWidth}m × ${operationDetails.pondDepth}m`
+          : "--"}
+      </p>
+      <p>
+        <strong>FCR:</strong> {operationDetails.fcr || "--"}
+      </p>
+      <p>
+        <strong>Aeration Duration:</strong>{" "}
+        {operationDetails.aerationDuration
+          ? `${operationDetails.aerationDuration} hrs`
+          : "--"}
+      </p>
+
+      <h1 className="reccomendations-fcr text-[2vh] flex flex-col items-start mt-2">
+        {/* Lightbulb icon at top */}
+        <span className="flex items-center mb-2 text-[#002033]">
+          <Lightbulb className="h-[3vh] w-[3vh] mr-2 text-cyan-600 " />
+          <span className="font-semibold">Recommendations</span>
+        </span>
+
+        {/* FCR text */}
+        {`Your Feed Conversion Ratio (FCR) is ${
+          operationDetails.fcr >= 1.5 && operationDetails.fcr <= 2.0
+            ? "within"
+            : "not within"
+        } the ideal range. The optimal FCR is between 1.5 and 2.0. ${
+          operationDetails.fcr < 1.5
+            ? "This indicates very efficient feed utilization — great job!"
+            : operationDetails.fcr > 2.0
+            ? "Consider adjusting your feeding practices to improve efficiency."
+            : ""
+        }`}
+      </h1>
+    </div>
+  ) : (
+    "Please include other details for more advanced operations such as FCR and aeration calculations."
+  );
+
+  // handle save and delete operation details
   return (
     <>
-      {/* Loading overlay */}
       {!readings && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/30 backdrop-blur-xl">
           <section className="flex gap-2">
@@ -118,117 +222,80 @@ function FeedingManagement() {
         </div>
       )}
 
-      {/* Main modal wrapper with scroll-x */}
       <div className="w-full h-full overflow-x-auto">
-        <div
-          className="
-        grid
-        grid-cols-1
-        gap-4
-        md:[@media(min-width:680px)]:grid-cols-[1fr_1.5fr_2fr]
-        md:[@media(min-width:680px)]:w-[1450px]
-        md:[@media(min-width:800px)]:mx-auto
-        overflow-y-hidden
-        rounded-xl
-        p-4
-        items-stretch
-      "
-        >
-          {/* Left column - stacked */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1.5fr_2fr] overflow-y-hidden rounded-xl p-4 items-stretch">
+          {/* LEFT SIDE */}
           <div className="grid grid-rows-2 gap-3 h-full">
-            {/* Feed Level */}
-            <div className="feedlevel-container flex flex-col items-center justify-center rounded-xl bg-[#edeae47b] shadow-md p-4 h-[clamp(270px,49vh,300px)]">
-              <h2 className="flex items-center w-full px-2 text-title font-medium">
-                <Gauge className="mr-2 h-5 w-5" />
-                Feed Level
-              </h2>
-              <p
-                className="flex-1 flex items-center justify-center text-[clamp(50px,4vw,60px)] font-extrabold"
-                style={colorCode(readings?.feedLevel.current)}
-              >
-                {readings?.feedLevel.current}%
-              </p>
-              <p className="text-center text-[clamp(15px,1vw,20px)]">
-                {refillMessage(readings?.feedLevel.current)}
-              </p>
-            </div>
-
-            {/* Next Feed Schedule Status */}
-            <div className="next-feed-schedule-container flex flex-col rounded-xl bg-[#edeae47b] shadow-md p-4 h-[clamp(270px,49vh,300px)]">
-              <h2 className="flex items-center text-title font-medium mb-2">
-                <Clock className="mr-2 h-5 w-5" />
-                Feed Schedule Status
-              </h2>
-              <div className="flex flex-col gap-2 flex-1">
-                {(() => {
-                  const activeScheds = schedArr
-                    .filter((s) => !s.isDeleted && s.isActive)
-                    .sort((a, b) => a.time.localeCompare(b.time));
-
-                  if (activeScheds.length >= 2) {
-                    const currentSched = activeScheds[0];
-                    const nextSched = activeScheds[1];
-                    return (
-                      <>
-                        <div className="bg-white rounded-lg px-3 py-2">
-                          Current: {currentSched.time}
-                          <p className="mt-1 rounded-lg bg-cyan-600 px-3 py-1 text-xs font-medium text-white w-[70%]">
-                            {currentSched.amount}kg
-                          </p>
-                        </div>
-                        <div className="opacity-50 bg-white rounded-lg px-3 py-2">
-                          Next: {nextSched.time}
-                          <p className="mt-1 rounded-lg bg-cyan-600 px-3 py-1 text-xs font-medium text-white w-[70%]">
-                            {nextSched.amount}kg
-                          </p>
-                        </div>
-                      </>
-                    );
-                  } else {
-                    return (
-                      <>
-                        <div className="bg-white rounded-lg px-3 py-2">
-                          Current: {defaultFeedingSchedule[0].time}
-                          <p className="mt-1 rounded-lg bg-cyan-600 px-3 py-1 text-xs font-medium text-white w-[70%]">
-                            {defaultFeedingSchedule[0].amount}kg
-                          </p>
-                        </div>
-                        {defaultFeedingSchedule[1] && (
-                          <div className="opacity-50 bg-white rounded-lg px-3 py-2">
-                            Next: {defaultFeedingSchedule[1].time}
-                            <p className="mt-1 rounded-lg bg-cyan-600 px-3 py-1 text-xs font-medium text-white w-[70%]">
-                              {defaultFeedingSchedule[1].amount}kg
-                            </p>
-                          </div>
-                        )}
-                      </>
-                    );
-                  }
-                })()}
-              </div>
-            </div>
+            <FeedLevel readings={readings} />
+            <FeedStatus
+              schedArr={schedArr}
+              defaultFeedingSchedule={defaultFeedingSchedule}
+            />
           </div>
 
-          {/* Middle column - Feed Input */}
+          {/* MIDDLE FORM */}
           <form
             onSubmit={handleAddSchedule}
-            className="feed-input-container flex flex-col items-center justify-start rounded-xl bg-[#edeae46e] shadow-md p-3 h-[clamp(300px,50vh,400px)]  
-"
+            className="flex flex-col items-center rounded-xl bg-[#edeae46e] shadow-md p-3 h-[clamp(600px,55vh,800px)] overflow-y-auto"
           >
-            <h2 className="flex items-center w-full text-title font-medium mb-2">
-              <PlusCircle className="mr-2 h-5 w-5" />
+            <h2 className="flex items-center self-start text-title font-semibold mb-3">
+              <PlusCircle className="mr-2 h-5 w-[] text-cyan-700" />
               Feed Input
             </h2>
-            <label className="text-[clamp(14px,1vw,20px)] mb-2 text-center ">
-              Input time and Feed Amount in Kilograms
+
+            {/* Toggle Advanced */}
+            <button
+              type="button"
+              onClick={() => {
+                if (showAdvanced) {
+                  saveOperationDetails(operationDetails); // save when advanced is shown
+                }
+                setShowAdvanced(!showAdvanced); // toggle advanced
+              }}
+              className="flex items-center gap-2 mb-3 text-[#002033] hover:text-cyan-700"
+            >
+              {showAdvanced ? (
+                <>
+                  <Save className="h-[clamp(12px,5vw,15px)] w-[clamp(12px,5vw,15px)]" />
+                  Save Details
+                </>
+              ) : (
+                <>
+                  <Edit3 className="h-[clamp(12px,5vw,15px)] w-[clamp(12px,5vw,15px)]" />
+                  Edit Details
+                </>
+              )}
+            </button>
+
+            {/* Summary */}
+            {!showAdvanced && (
+              <div className="w-[105%] bg-white/60 border border-gray-300 rounded-lg p-3 mb-3 text-sm text-[#002033] h-[clamp(100px,60vh,250px)] overflow-y-auto">
+                {summaryMessage}
+              </div>
+            )}
+
+            {/* Advanced Section */}
+            {showAdvanced && (
+              <FeedingAerationSettings
+                operationDetails={operationDetails}
+                setOperationDetails={setOperationDetails}
+                handleClearAll={handleClearAll}
+                onHardDeleteDetails={deleteOperationDetails}
+                onShowAdvanced={setShowAdvanced}
+                showAdvanced={showAdvanced}
+              />
+            )}
+
+            {/* Input Time and Feed Amount */}
+            <label className="text-[clamp(14px,1vw,20px)] mb-2 text-center">
+              Input Time and Feed Amount (kg)
             </label>
             <input
-              id="feeding-input-time"
               type="time"
-              className="my-3 w-[80%] h-[70px] text-[clamp(1.5rem,3vw,2rem)] text-[#002033] rounded-lg border-2 border-[#002033] bg-[#7f81825b] px-3 cursor-pointer"
+              className="my-2 w-[80%] h-[70px] text-[clamp(1.5rem,3vw,2rem)] text-[#002033] rounded-lg border-2 border-[#002033] bg-[#7f81825b] px-3 cursor-pointer"
               value={feedSched.feedSched || ""}
               onChange={(e) =>
-                setFeedSched((rec) => ({ ...rec, feedSched: e.target.value }))
+                setFeedSched({ ...feedSched, feedSched: e.target.value })
               }
               required
             />
@@ -237,15 +304,14 @@ function FeedingManagement() {
                 type="number"
                 placeholder="Feed Amount (kg)"
                 step="0.01"
-                className="my-3 text-[clamp(15px, 2.5vh,20px)] w-[50%] h-[70px] text-center text-[#002033] rounded-lg border-2 border-[#002033] bg-[#7f81825b] text-base placeholder:text-[#002033]/70 cursor-pointer"
+                className="my-3 text-[clamp(10px,2.3vh,20px)] w-[50%] h-[70px] text-center text-[#002033] rounded-lg border-2 border-[#002033] bg-[#7f81825b]"
                 value={feedSched.feedAmount || ""}
                 onChange={(e) => {
-                  let value = e.target.value.replace(/[^0-9.]/g, "");
-                  value = parseFloat(value);
-                  if (isNaN(value) || value <= 0) value = "";
-                  else if (value > 0.99) value = 0.99;
-                  else value = Math.floor(value * 100) / 100;
-                  setFeedSched((rec) => ({ ...rec, feedAmount: value }));
+                  let val = parseFloat(e.target.value);
+                  if (isNaN(val) || val <= 0) val = "";
+                  else if (val > 0.99) val = 0.99;
+                  else val = Math.floor(val * 100) / 100;
+                  setFeedSched({ ...feedSched, feedAmount: val });
                 }}
                 required
               />
@@ -253,14 +319,14 @@ function FeedingManagement() {
                 id="feeding-submit-btn"
                 type="submit"
                 value="Submit"
-                className="h-[60px] w-[45%] text-white text-[clamp(15px, 2.5vh,20px)] font-medium rounded-lg bg-[#002033] cursor-pointer hover:bg-[#0b66b1] active:opacity-70"
+                className="h-[60px] w-[45%] text-white text-[clamp(10px,2.3vh,20px)] font-medium rounded-lg bg-[#002033] cursor-pointer hover:bg-[#0b66b1] active:opacity-70"
               />
             </div>
           </form>
 
-          {/* Right column - Feeding Schedule list */}
-          <div className="feed-schedule-list flex flex-col w-full rounded-xl bg-[#edeae47c] shadow-md p-4 h-[clamp(500px,100vh,600px)] mb-10">
-            <div className="flex flex-row justify-between items-center lg:mb-0 mb-15">
+          {/* RIGHT SIDE */}
+          <div className="feed-schedule-list flex flex-col w-full rounded-xl bg-[#edeae47c] shadow-md p-4 h-[clamp(300px,100vh,600px)] mb-10">
+            <div className="flex flex-row justify-between items-center">
               <h1 className="flex items-center text-title font-medium">
                 <ListChecks className="h-6 mr-2" />
                 Feeding Schedule
@@ -271,22 +337,32 @@ function FeedingManagement() {
                   : "Customized Schedule"}
               </h1>
             </div>
+
             <div className="feeding-schedule-scrollable flex items-center flex-col w-full overflow-y-auto overflow-x-hidden border-y border-[#15314730] flex-1">
               {feedingSchedules.loading && <p>Loading schedules...</p>}
-              {!feedingSchedules.loading &&
-                schedArr.map((sched) => {
-                  if (sched.isDeleted) return null;
-                  return (
-                    <FeedingSchedule
-                      key={sched.schedId}
-                      id={sched.schedId}
-                      sched={sched}
-                      onToggle={handleToggle}
-                      onSoftDelete={handleSoftDeleteSched}
-                      onHardDelete={handleHardDeleteSched}
-                    />
-                  );
-                })}
+              {!feedingSchedules.loading ? (
+                feedingSchedules && schedArr.length > 0 ? (
+                  schedArr.map(
+                    (sched) =>
+                      !sched.isDeleted && (
+                        <FeedingSchedule
+                          key={sched.schedId}
+                          id={sched.schedId}
+                          sched={sched}
+                          onToggle={updateSchedule}
+                          onSoftDelete={softDeleteSchedule}
+                          onHardDelete={deleteSchedule}
+                        />
+                      )
+                  )
+                ) : (
+                  <h1 className="no-schedule-text items-center mt-[50%]">
+                    There are no schedules yet
+                  </h1>
+                )
+              ) : (
+                <h1>Still loading...</h1>
+              )}
             </div>
           </div>
         </div>
@@ -297,46 +373,86 @@ function FeedingManagement() {
 
 export default FeedingManagement;
 
-// ------------------ COLOR CODE FUNCTION ------------------
-const colorCode = (feedLevel) => {
-  if (feedLevel === undefined || feedLevel === null) {
-    return { color: "#D3D3D3" }; // Default gray for no data
-  }
-  if (feedLevel < 50) return { color: "#de2e2eff" };
-  if (feedLevel >= 50 && feedLevel <= 70) return { color: "#8a9406ff" };
+/* ------------ Subcomponents ------------ */
+const FeedLevel = ({ readings }) => (
+  <div className="feedlevel-container flex flex-col items-center justify-center rounded-xl bg-[#edeae47b] shadow-md p-4 h-[clamp(270px,49vh,300px)]">
+    <h2 className="flex items-center w-full px-2 text-title font-medium">
+      <Gauge className="mr-2 h-5 w-5" /> Feed Level
+    </h2>
+    <p
+      className="flex-1 flex items-center justify-center text-[clamp(50px,4vw,60px)] font-extrabold"
+      style={colorCode(readings?.feedLevel.current)}
+    >
+      {readings?.feedLevel.current}%
+    </p>
+    <p className="text-center text-[clamp(15px,1vw,20px)]">
+      {refillMessage(readings?.feedLevel.current)}
+    </p>
+  </div>
+);
+
+const FeedStatus = ({ schedArr, defaultFeedingSchedule }) => {
+  const activeScheds = schedArr
+    .filter((s) => !s.isDeleted && s.isActive)
+    .sort((a, b) => a.time.localeCompare(b.time));
+
+  const currentSched = activeScheds[0] || defaultFeedingSchedule[0];
+  const nextSched = activeScheds[1] || defaultFeedingSchedule[1];
+
+  return (
+    <div className="next-feed-schedule-container flex flex-col rounded-xl bg-[#edeae47b] shadow-md p-4 h-[clamp(270px,49vh,300px)]">
+      <h2 className="flex items-center text-title font-medium mb-2">
+        <Clock className="mr-2 h-5 w-5" />
+        Feed Schedule Status
+      </h2>
+      <div className="flex flex-col gap-2 flex-1">
+        <div className="bg-white rounded-lg px-3 py-2">
+          Current: {currentSched.time}
+          <p className="mt-1 rounded-lg bg-cyan-600 px-3 py-1 text-xs font-medium text-white w-[70%]">
+            {currentSched.amount}kg
+          </p>
+        </div>
+        <div className="opacity-50 bg-white rounded-lg px-3 py-2">
+          Next: {nextSched.time}
+          <p className="mt-1 rounded-lg bg-cyan-600 px-3 py-1 text-xs font-medium text-white w-[70%]">
+            {nextSched.amount}kg
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ------------ Helpers ------------ */
+const colorCode = (level) => {
+  if (level === undefined || level === null) return { color: "#D3D3D3" };
+  if (level < 50) return { color: "#de2e2eff" };
+  if (level >= 50 && level <= 70) return { color: "#8a9406ff" };
   return { color: "#3bcb3bff" };
 };
 
-// ------------------ REFILL MESSAGE FUNCTION ------------------
 const refillMessage = (feedLevel) => {
-  if (feedLevel === undefined || feedLevel === null) {
+  if (feedLevel === undefined || feedLevel === null)
     return (
       <span className="flex items-center gap-2 text-gray-500">
-        <Info className="w-5 h-5" />
-        No data
+        <Info className="w-5 h-5" /> No data
       </span>
     );
-  }
-  if (feedLevel < 50) {
+  if (feedLevel < 50)
     return (
       <span className="flex items-center gap-2 text-red-600">
-        <AlertTriangle className="w-5 h-5" />
-        Refill now!
+        <AlertTriangle className="w-5 h-5" /> Refill now!
       </span>
     );
-  }
-  if (feedLevel >= 50 && feedLevel <= 70) {
+  if (feedLevel >= 50 && feedLevel <= 70)
     return (
       <span className="flex items-center gap-2 text-yellow-600">
-        <Info className="w-5 h-5" />
-        Monitor level
+        <Info className="w-5 h-5" /> Monitor level
       </span>
     );
-  }
   return (
     <span className="flex items-center gap-2 text-green-600">
-      <CheckCircle className="w-5 h-5" />
-      Sufficient
+      <CheckCircle className="w-5 h-5" /> Sufficient
     </span>
   );
 };

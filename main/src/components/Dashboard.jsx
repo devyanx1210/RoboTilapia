@@ -13,7 +13,9 @@ import { useAnimatedToggle, useReadDatabase } from "./utils.jsx";
 export const currentUser = auth.currentUser;
 
 function Dashboard() {
+  console.log(auth.currentUser);
   const { readings, loading } = useReadDatabase("/sensors");
+  console.log(readings);
   const sidebar = useAnimatedToggle(300);
   const signout = useAnimatedToggle(300); // toggle for modal
   const closeSignoutSideBar = () => {
@@ -30,8 +32,8 @@ function Dashboard() {
       clicked: true,
     },
     {
-      title: "Feeding",
-      path: "/dashboard/feeding-management",
+      title: "Operations",
+      path: "/dashboard/feeding-aeration-management",
       icon: Droplet,
       clicked: false,
     },

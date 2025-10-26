@@ -81,7 +81,7 @@ export default function LoginPage() {
       <form
         onSubmit={handleLogin}
         className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
-         sm:w-[370px] min-w-[350px]  min-h-[500px] p-8 flex flex-col items-center gap-4 
+         sm:w-[370px] min-w-[310px]  min-h-[500px] p-8 flex flex-col items-center gap-4 
         bg-white/10 backdrop-blur-lg rounded-2xl shadow-lg z-20
         ${showModal.signup ? "hidden" : "flex"}`}
       >

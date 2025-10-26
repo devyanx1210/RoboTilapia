@@ -34,7 +34,7 @@ const router = createBrowserRouter([
         element: <Navigate to="water-parameter-monitoring" replace />,
       },
       { path: "water-parameter-monitoring", element: <WaterParameters /> },
-      { path: "feeding-management", element: <FeedingManagement /> },
+      { path: "feeding-aeration-management", element: <FeedingManagement /> },
       { path: "settings", element: <Settings /> },
     ],
   },
