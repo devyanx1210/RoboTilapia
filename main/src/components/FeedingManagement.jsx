@@ -37,6 +37,10 @@ function FeedingManagement() {
   const feedingSchedules = useReadDatabase(
     "/machines/machine0/feedingSched/custom"
   );
+  const operationDetailsDB = useReadDatabase(
+    "/machines/machine0/operationDetails"
+  );
+  console.log(operationDetailsDB);
   console.log(feedingSchedules);
   const { addSchedule } = useAddSchedule("machine0");
   const { updateSchedule } = useUpdateSchedule("machine0");
@@ -52,7 +56,9 @@ function FeedingManagement() {
   });
   const [operationDetails, setOperationDetails] = useState({
     numberOfFish: "",
+    fishWeight: "",
     fishStage: "",
+    feedPerDay: "",
     feedSize: "",
     feedShape: "",
     totalFeedUsed: "",
@@ -72,26 +78,29 @@ function FeedingManagement() {
 
   // Auto-calc FCR: Total Feed Used / (Harvest Weight - Stocking Weight)
   useEffect(() => {
-    const totalFeed = parseFloat(operationDetails.totalFeedUsed);
-    const harvest = parseFloat(operationDetails.harvestWeight);
-    const stock = parseFloat(operationDetails.stockingWeight);
+    const totalFeed = parseFloat(operationDetailsDB?.readings?.totalFeedUsed);
+    const harvest = parseFloat(operationDetailsDB?.readings?.harvestWeight);
+    const stock = parseFloat(operationDetailsDB?.readings?.stockingWeight);
     if (totalFeed > 0 && harvest > stock) {
       const calc = (totalFeed / (harvest - stock)).toFixed(2);
       setOperationDetails((prev) => ({ ...prev, fcr: calc }));
+      updateOperationDetails({ fcr: calc });
+      console.log(calc);
     } else {
       setOperationDetails((prev) => ({ ...prev, fcr: "" }));
+      updateOperationDetails({ fcr: "" });
     }
   }, [
-    operationDetails.totalFeedUsed,
-    operationDetails.harvestWeight,
-    operationDetails.stockingWeight,
+    operationDetailsDB?.readings?.totalFeedUsed,
+    operationDetailsDB?.readings?.harvestWeight,
+    operationDetailsDB?.readings?.stockingWeight,
   ]);
 
   // Auto-calc Aeration Duration based on Pond Volume (m³)
   useEffect(() => {
-    const L = parseFloat(operationDetails.pondLength);
-    const W = parseFloat(operationDetails.pondWidth);
-    const D = parseFloat(operationDetails.pondDepth);
+    const L = parseFloat(operationDetailsDB?.readings?.pondLength);
+    const W = parseFloat(operationDetailsDB?.readings?.pondWidth);
+    const D = parseFloat(operationDetailsDB?.readings?.pondDepth);
     if (L > 0 && W > 0 && D > 0) {
       const volume = L * W * D;
       const duration = Math.max(2, Math.min((volume / 50).toFixed(1), 12));
@@ -100,9 +109,55 @@ function FeedingManagement() {
       setOperationDetails((prev) => ({ ...prev, aerationDuration: "" }));
     }
   }, [
-    operationDetails.pondLength,
-    operationDetails.pondWidth,
-    operationDetails.pondDepth,
+    operationDetailsDB?.readings?.pondLength,
+    operationDetailsDB?.readings?.pondWidth,
+    operationDetailsDB?.readings?.pondDepth,
+  ]);
+
+  const [feedRate, setFeedRate] = useState("");
+  useEffect(() => {
+    // Function to determine feed rate (% of body weight per day)
+    const getFeedingRate = (stage) => {
+      switch (stage) {
+        case "Fry":
+          return 25; // 20–30% of body weight/day
+        case "Fingerling":
+          return 5; // 3–7%
+        case "Juvenile":
+          return 4.5; // 3–6%
+        case "Adult":
+          return 2.75; // 1.5–4%
+        default:
+          return 0;
+      }
+    };
+
+    // Extract inputs
+    const numFish = Number(operationDetailsDB?.readings?.numberOfFish) || 0;
+    const avgWeight = Number(operationDetailsDB?.readings?.fishWeight) || 0;
+    const fishStage = operationDetailsDB?.readings?.fishStage;
+
+    // Get feed rate based on fish stage
+    const feedRate = getFeedingRate(fishStage);
+    setFeedRate(feedRate);
+
+    // Calculate Feed Per Day (kg)
+    // Formula: feedPerDay = (number × weight × feedRate) / 100
+    const feedPerDay =
+      numFish > 0 && avgWeight > 0 && feedRate > 0
+        ? ((numFish * avgWeight * feedRate) / 100).toFixed(2)
+        : "";
+
+    // Update state and database
+    setOperationDetails((prev) => ({ ...prev, feedPerDay: feedPerDay }));
+    updateOperationDetails({ feedPerDay: feedPerDay });
+    updateOperationDetails({ feedRate: feedRate });
+
+    console.log("Feed per day (kg):", feedPerDay);
+  }, [
+    operationDetailsDB?.readings?.numberOfFish,
+    operationDetailsDB?.readings?.fishWeight,
+    operationDetailsDB?.readings?.fishStage,
   ]);
 
   const handleAddSchedule = (e) => {
@@ -117,9 +172,8 @@ function FeedingManagement() {
 
   const handleClearAll = () =>
     setOperationDetails({
-      feedSched: "",
-      feedAmount: "",
       numberOfFish: "",
+      fishWeight: "",
       fishStage: "",
       feedSize: "",
       feedShape: "",
@@ -149,60 +203,76 @@ function FeedingManagement() {
   }, [schedArr]);
 
   const hasAdvanced =
-    operationDetails.numberOfFish ||
-    operationDetails.feedSize ||
-    operationDetails.feedShape ||
-    operationDetails.pondLength ||
-    operationDetails.pondWidth ||
-    operationDetails.pondDepth;
-
+    operationDetailsDB?.readings?.numberOfFish ||
+    operationDetailsDB?.readings?.fishWeight ||
+    operationDetailsDB?.readings?.fishStage ||
+    operationDetailsDB?.readings?.feedSize ||
+    operationDetailsDB?.readings?.feedShape ||
+    operationDetailsDB?.readings?.harvestWeight ||
+    operationDetailsDB?.readings?.stockingWeight ||
+    operationDetailsDB?.readings?.totalFeedUsed ||
+    operationDetailsDB?.readings?.pondLength ||
+    operationDetailsDB?.readings?.pondWidth ||
+    operationDetailsDB?.readings?.pondDepth;
   const summaryMessage = hasAdvanced ? (
     <div className="space-y-1 text-sm">
+      {/* Fish Information */}
       <p>
-        <strong>Fish Count:</strong> {operationDetails.numberOfFish || "--"} (
-        {operationDetails.fishStage || "N/A"})
+        <strong>Fish Count:</strong>{" "}
+        {operationDetailsDB?.readings?.numberOfFish || "--"}
       </p>
       <p>
-        <strong>Feed Type:</strong> {operationDetails.feedSize || "--"} /{" "}
-        {operationDetails.feedShape || "--"}
-      </p>
-      <p>
-        <strong>Pond Dimensions:</strong>{" "}
-        {operationDetails.pondLength &&
-        operationDetails.pondWidth &&
-        operationDetails.pondDepth
-          ? `${operationDetails.pondLength}m × ${operationDetails.pondWidth}m × ${operationDetails.pondDepth}m`
+        <strong>Average Fish Weight:</strong>{" "}
+        {operationDetailsDB?.readings?.fishWeight
+          ? `${operationDetailsDB?.readings?.fishWeight} kg`
           : "--"}
       </p>
       <p>
-        <strong>FCR:</strong> {operationDetails.fcr || "--"}
-      </p>
-      <p>
-        <strong>Aeration Duration:</strong>{" "}
-        {operationDetails.aerationDuration
-          ? `${operationDetails.aerationDuration} hrs`
-          : "--"}
+        <strong>Growth Stage:</strong>{" "}
+        {operationDetailsDB?.readings?.fishStage || "N/A"}
       </p>
 
+      {/* Feed Calculation Section */}
+      <p>
+        <strong>Feed Required (per day):</strong>{" "}
+        {`${operationDetailsDB?.readings?.feedPerDay || "0.00"} kg/day`}
+      </p>
+
+      {/* FCR Section */}
+      <div className="mt-3">
+        <p>
+          <strong>FCR:</strong> {operationDetailsDB?.readings?.fcr || "--"}
+        </p>
+      </div>
+
+      {/* Recommendations */}
       <h1 className="reccomendations-fcr text-[2vh] flex flex-col items-start mt-2">
-        {/* Lightbulb icon at top */}
         <span className="flex items-center mb-2 text-[#002033]">
-          <Lightbulb className="h-[3vh] w-[3vh] mr-2 text-cyan-600 " />
+          <Lightbulb className="h-[3vh] w-[3vh] mr-2 text-cyan-600" />
           <span className="font-semibold">Recommendations</span>
         </span>
 
-        {/* FCR text */}
-        {`Your Feed Conversion Ratio (FCR) is ${
-          operationDetails.fcr >= 1.5 && operationDetails.fcr <= 2.0
-            ? "within"
-            : "not within"
-        } the ideal range. The optimal FCR is between 1.5 and 2.0. ${
-          operationDetails.fcr < 1.5
-            ? "This indicates very efficient feed utilization — great job!"
-            : operationDetails.fcr > 2.0
-            ? "Consider adjusting your feeding practices to improve efficiency."
-            : ""
-        }`}
+        {operationDetailsDB?.readings?.feedPerDay
+          ? `Based on your fish's current growth stage and total biomass, the recommended daily feed is approximately ${operationDetailsDB?.readings?.feedPerDay} kg to support optimal growth and efficient feeding performance.`
+          : "Please input the number of fish, the average fish weight, and the growth stage."}
+
+        <br />
+        <br />
+
+        {operationDetailsDB?.readings?.fcr
+          ? `Your Feed Conversion Ratio (FCR) is ${
+              operationDetailsDB?.readings?.fcr >= 1.5 &&
+              operationDetailsDB?.readings?.fcr <= 2.0
+                ? "within the ideal range"
+                : "not within the ideal range"
+            }. The optimal FCR is between 1.5 and 2.0. ${
+              operationDetailsDB?.readings?.fcr < 1.5
+                ? "This indicates very efficient feed utilization — great job!"
+                : operationDetailsDB?.readings?.fcr > 2.0
+                ? "Consider adjusting your feeding practices to improve efficiency."
+                : ""
+            }`
+          : "Please enter your FCR value to see feed efficiency recommendations."}
       </h1>
     </div>
   ) : (
@@ -240,7 +310,7 @@ function FeedingManagement() {
           >
             <h2 className="flex items-center self-start text-title font-semibold mb-3">
               <PlusCircle className="mr-2 h-5 w-[] text-cyan-700" />
-              Feed Input
+              Feed & Aeration Input
             </h2>
 
             {/* Toggle Advanced */}
@@ -256,7 +326,7 @@ function FeedingManagement() {
             >
               {showAdvanced ? (
                 <>
-                  <Save className="h-[clamp(12px,5vw,15px)] w-[clamp(12px,5vw,15px)]" />
+                  <Save className="h-[clamp(12px,5vw,15px)] w-[clamp(12px,5vw,15px)] flex justify-start" />
                   Save Details
                 </>
               ) : (
@@ -269,7 +339,7 @@ function FeedingManagement() {
 
             {/* Summary */}
             {!showAdvanced && (
-              <div className="w-[105%] bg-white/60 border border-gray-300 rounded-lg p-3 mb-3 text-sm text-[#002033] h-[clamp(100px,60vh,250px)] overflow-y-auto">
+              <div className="w-[100%] bg-white/60 border border-gray-300 rounded-lg p-3 mb-3 text-sm text-[#002033] h-[clamp(100px,60vh,250px)] overflow-y-auto">
                 {summaryMessage}
               </div>
             )}
@@ -283,6 +353,8 @@ function FeedingManagement() {
                 onHardDeleteDetails={deleteOperationDetails}
                 onShowAdvanced={setShowAdvanced}
                 showAdvanced={showAdvanced}
+                operationDetailsDb={operationDetailsDB}
+                updateOperationDetails={updateOperationDetails}
               />
             )}
 

@@ -1,19 +1,19 @@
 import React from "react";
 import { XCircle, Trash2 } from "lucide-react";
 
-// TODO: close button
-
 export default function FeedingAerationSettings({
   operationDetails,
   setOperationDetails,
   handleClearAll,
   onHardDeleteDetails,
-  onClose, // <-- callback function for closing modal
+  onClose,
+  updateOperationDetails,
+  operationDetailsDB,
 }) {
   return (
     <>
       {/* Advanced Section */}
-      <div className="relative w-[90%] mb-3 p-3 bg-white/60 rounded-lg space-y-3 overflow-y-auto max-h-[280px] border border-gray-300">
+      <div className="relative w-[90%] mb-3 p-3 bg-white/60 rounded-lg space-y-3 overflow-y-auto max-h-[280px] border border-gray-300 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400">
         {/* Close Button at Top-Right */}
         <button
           type="button"
@@ -23,22 +23,40 @@ export default function FeedingAerationSettings({
           <XCircle className="h-[clamp(10px,5vw,14px)] w-[clamp(10px,5vw,14px)]" />
         </button>
 
+        {/* Number of Fish, Weight, and Growth Stage */}
         <label className="text-sm font-medium text-gray-700">
-          Number of Fish & Growth Stage
+          Number of Fish, Weight, & Growth Stage
         </label>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <input
             type="number"
+            min="0"
             placeholder="e.g., 200"
-            value={operationDetails.numberOfFish}
-            onChange={(e) =>
+            value={operationDetails.numberOfFish || ""}
+            onChange={(e) => {
               setOperationDetails({
                 ...operationDetails,
                 numberOfFish: e.target.value,
+              });
+            }}
+            className="text-[clamp(10px,3vw,12px)] border border-gray-400 rounded-md p-2"
+          />
+
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Fish Wt (kg)"
+            value={operationDetails.fishWeight || ""}
+            onChange={(e) =>
+              setOperationDetails({
+                ...operationDetails,
+                fishWeight: e.target.value,
               })
             }
-            className="text-[clamp(10px,3vw,12px)] input-field border border-gray-400 rounded-md p-2 w-1/2"
+            className="text-[clamp(10px,3vw,12px)] border border-gray-400 rounded-md p-2"
           />
+
           <select
             value={operationDetails.fishStage}
             onChange={(e) =>
@@ -47,7 +65,7 @@ export default function FeedingAerationSettings({
                 fishStage: e.target.value,
               })
             }
-            className="border border-gray-400 rounded-md p-2 w-1/2 text-[clamp(10px,3vw,12px)] "
+            className="border border-gray-400 rounded-md p-2 text-[clamp(10px,3vw,12px)]"
           >
             <option value="">Growth Stage</option>
             <option value="Fry">Fry</option>
@@ -58,6 +76,7 @@ export default function FeedingAerationSettings({
           </select>
         </div>
 
+        {/* Feed Size & Shape */}
         <label className="text-sm font-medium text-gray-700">
           Feed Size & Shape
         </label>
@@ -95,12 +114,14 @@ export default function FeedingAerationSettings({
           </select>
         </div>
 
+        {/* FCR Inputs */}
         <label className="text-sm font-medium text-gray-700">
           FCR Calculation Inputs (kg)
         </label>
         <div className="grid grid-cols-3 gap-2">
           <input
             type="number"
+            min="0"
             step="0.01"
             placeholder="Total Feed Used"
             value={operationDetails.totalFeedUsed}
@@ -114,6 +135,7 @@ export default function FeedingAerationSettings({
           />
           <input
             type="number"
+            min="0"
             step="0.01"
             placeholder="Stocking Wt"
             value={operationDetails.stockingWeight}
@@ -127,6 +149,7 @@ export default function FeedingAerationSettings({
           />
           <input
             type="number"
+            min="0"
             step="0.01"
             placeholder="Harvest Wt"
             value={operationDetails.harvestWeight}
@@ -144,6 +167,7 @@ export default function FeedingAerationSettings({
           FCR = Total Feed Used ÷ (Harvest Weight − Stocking Weight)
         </p>
 
+        {/* Pond Dimensions */}
         <label className="text-sm font-medium text-gray-700 mt-2">
           Pond Dimensions (m)
         </label>
@@ -152,6 +176,7 @@ export default function FeedingAerationSettings({
             <input
               key={dim}
               type="number"
+              min="0"
               placeholder={dim.replace("pond", "")}
               value={operationDetails[dim]}
               onChange={(e) =>
@@ -165,9 +190,8 @@ export default function FeedingAerationSettings({
           ))}
         </div>
 
-        {/* Buttons: Clear All Inputs (left) + Delete (right) */}
+        {/* Buttons */}
         <div className="flex justify-between mt-2">
-          {/* Clear All Inputs Button */}
           <button
             type="button"
             onClick={() => {
@@ -180,10 +204,9 @@ export default function FeedingAerationSettings({
             Clear All Inputs
           </button>
 
-          {/* Delete Button */}
           <button
             type="button"
-            onClick={onHardDeleteDetails} // just deletes data
+            onClick={onHardDeleteDetails}
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-[clamp(9px,3vw,10px)]"
           >
             <Trash2 className="h-[clamp(10px,4vw,14px)] w-[clamp(10px,4vw,14px)]" />
