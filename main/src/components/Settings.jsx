@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { FileDown, KeyRound, User2 } from "lucide-react";
+import { useOutletContext } from "react-router-dom";
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
   const [age, setAge] = useState("");
+  const { currentUser, readings } = useOutletContext();
 
   const handleAgeChange = (e) => {
     const value = e.target.value;

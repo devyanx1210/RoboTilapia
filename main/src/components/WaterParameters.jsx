@@ -11,7 +11,7 @@ function WaterParameters() {
   const [chart, setChart] = useState("temperature");
   const [chartPeriod, setChartPeriod] = useState("daily"); // "daily" or "weekly"
   const chartFocus = useRef();
-  const { readings } = useOutletContext();
+  const { currentUser, readings } = useOutletContext();
   // ------------------ Firebase Listener ------------------
   const [analytics, setAnalytics] = useState(null);
 

@@ -13,7 +13,6 @@ import { useAnimatedToggle, useReadDatabase } from "./utils.jsx";
 export const currentUser = auth.currentUser;
 
 function Dashboard() {
-  console.log(auth.currentUser);
   const { readings, loading } = useReadDatabase("/sensors");
   console.log(readings);
   const sidebar = useAnimatedToggle(300);
@@ -121,7 +120,13 @@ function Dashboard() {
         {/* CONTENT SECTION */}
         <div className="flex flex-col flex-1 mt-[110px] overflow-y-auto text-[#232a2f]">
           <Outlet
-            context={{ readings, closeSignoutSideBar, signout, sidebar }}
+            context={{
+              currentUser,
+              readings,
+              closeSignoutSideBar,
+              signout,
+              sidebar,
+            }}
           />
         </div>
       </div>
