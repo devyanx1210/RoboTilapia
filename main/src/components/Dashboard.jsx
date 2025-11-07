@@ -4,25 +4,37 @@ import { Outlet, Link, useNavigate } from "react-router-dom";
 
 // Assets
 import logo from "../assets/temp_logo.png";
-import { Monitor, Settings, LogOut, Droplet, X } from "lucide-react"; // Droplet for feeding
+import { Monitor, Settings, LogOut, Droplet, X } from "lucide-react";
 
 // Firebase & utils
 import { auth } from "../firebase.js";
 import { useAnimatedToggle, useReadDatabase } from "./utils.jsx";
 
-export const currentUser = auth.currentUser;
-
 function Dashboard() {
-  console.log(auth.currentUser);
+  const navigate = useNavigate();
+
+  // Track user state to avoid "uid of null"
+  const [user, setUser] = useState(() => auth.currentUser);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((u) => setUser(u));
+    return unsubscribe;
+  }, []);
+
+  // Read sensors data
   const { readings, loading } = useReadDatabase("/sensors");
-  console.log(readings);
+
+  // Read user data only if user exists
+  const { readings: userReadings, loading: userLoading } = useReadDatabase(
+    user ? `/users/${user.uid}` : null
+  );
+
   const sidebar = useAnimatedToggle(300);
-  const signout = useAnimatedToggle(300); // toggle for modal
+  const signout = useAnimatedToggle(300);
   const closeSignoutSideBar = () => {
     sidebar.close();
     signout.close();
   };
-  const navigate = useNavigate();
 
   const [sections, setSections] = useState([
     {
@@ -67,16 +79,24 @@ function Dashboard() {
   }, [signout.shouldRender, sidebar.shouldRender]);
 
   const handleNavClick = (index, sec) => {
-    // Update clicked state for nav effect
     setSections((prev) => prev.map((s, i) => ({ ...s, clicked: i === index })));
     if (sec.title === "Sign Out") signout.open();
   };
 
   const handleSignOut = () => {
-    auth.signOut(); // optional, keep if you still want to sign out
+    auth.signOut();
     signout.close();
-    navigate("/"); // redirect to homepage
+    navigate("/");
   };
+
+  // Wait until user is loaded
+  if (user === undefined || user === null) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-[#002033] text-white">
+        <p>Loading user...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -92,21 +112,21 @@ function Dashboard() {
                 className="h-[clamp(80px,7vw,100px)] rounded-full"
               />
               <div className="flex flex-col">
-                {loading ? (
+                {userLoading ? (
                   <p>Loading user info...</p>
-                ) : currentUser ? (
+                ) : userReadings ? (
                   <>
                     <h3 className="text-[clamp(18px,2vw,30px)] font-bold bg-gradient-to-r from-[#002033] via-blue-500 to-sky-500 bg-clip-text text-transparent">
-                      Welcome, {currentUser.displayName}
+                      Welcome, {userReadings.displayName || "Tilapia Farmer"}
                     </h3>
                     <h4 className="text-[clamp(13px,2vw,25px)] sm:text-base font-light text-[#002033] break-words">
-                      {currentUser.email}
+                      {userReadings.email || user.email}
                     </h4>
                   </>
                 ) : (
                   <>
                     <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-[#002033] via-blue-500 to-sky-500 bg-clip-text text-transparent">
-                      Welcome, Tilapia Farmer 1
+                      Welcome, Tilapia Farmer
                     </h3>
                     <h4 className="text-sm sm:text-base font-light text-[#002033] break-words">
                       tilapiaFarmer@gmail.com
@@ -126,7 +146,7 @@ function Dashboard() {
               closeSignoutSideBar,
               signout,
               sidebar,
-              currentUser,
+              currentUser: user,
             }}
           />
         </div>
@@ -167,7 +187,6 @@ function Dashboard() {
       {/* SIGN OUT MODAL */}
       {signout.shouldRender && (
         <>
-          {/* Overlay */}
           <div
             className={`fixed inset-0 bg-black-500/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${
               signout.animating ? "opacity-100" : "opacity-0"
@@ -175,14 +194,12 @@ function Dashboard() {
             onClick={closeSignoutSideBar}
           ></div>
 
-          {/* Modal */}
           <div
-            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-lg z-50 p-6 w-[clamp(280px,80%,400px)] h-[clamp(150px,30vh,200px)] flex flex-col justify-center items-center transition-transform duration-300  ${
+            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-lg z-50 p-6 w-[clamp(280px,80%,400px)] h-[clamp(150px,30vh,200px)] flex flex-col justify-center items-center transition-transform duration-300 ${
               signout.animating ? "scale-100 opacity-100" : "scale-95 opacity-0"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close X */}
             <button
               className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 transition"
               onClick={closeSignoutSideBar}
@@ -190,12 +207,10 @@ function Dashboard() {
               <X className="h-5 w-5" />
             </button>
 
-            {/* Title */}
             <h2 className="text-lg font-semibold text-center mb-4">
               Do you want to sign out?
             </h2>
 
-            {/* Actions */}
             <div className="flex justify-center gap-4">
               <button
                 className="px-4 py-2 rounded-md bg-cyan-500 text-white font-semibold hover:bg-cyan-600 transition"
@@ -216,15 +231,13 @@ function Dashboard() {
 
       {/* Loading layout */}
       {loading && (
-        <div className="fixed inset-0 w-screen  backdrop-blur-2xl bg-black/30 z-[1000] flex justify-center items-center">
+        <div className="fixed inset-0 w-screen backdrop-blur-2xl bg-black/30 z-[1000] flex justify-center items-center">
           <section className="flex items-center justify-center h-screen w-screen">
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className={`
-                h-5 w-5 mr-[10px] last:mr-0 rounded-full bg-[#b3d4fc] animate-pulseDot
-              `}
-                style={{ animationDelay: `${i * 0.2 - 0.3}s` }} // delay handled inline since Tailwind doesn't support nth-child
+                className="h-5 w-5 mr-[10px] last:mr-0 rounded-full bg-[#b3d4fc] animate-pulseDot"
+                style={{ animationDelay: `${i * 0.2 - 0.3}s` }}
               />
             ))}
           </section>

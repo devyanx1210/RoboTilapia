@@ -29,13 +29,17 @@ import {
 } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 
-// ---------------------- READ HOOK ----------------------
-//
 export function useReadDatabase(path = "/machines/machine0") {
   const [readings, setReadings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 🚨 Don't run if path is invalid
+    if (!path || typeof path !== "string" || path.trim() === "") {
+      setLoading(false);
+      return;
+    }
+
     const db = getDatabase(app);
     const dbRef = ref(db, path);
 
@@ -48,6 +52,20 @@ export function useReadDatabase(path = "/machines/machine0") {
   }, [path]);
 
   return { readings, loading };
+}
+
+// ------------------------Update User Personal Info-------------------
+export function useUpdateUserInfo() {
+  const updateUserInfo = async (userId, updates) => {
+    try {
+      const db = getDatabase(app);
+      await update(ref(db, `/users/${userId}`), updates);
+      console.log("User info updated:", userId);
+    } catch (error) {
+      console.error("Error User Info:", error);
+    }
+  };
+  return { updateUserInfo };
 }
 
 // ------------------------Water Parameter Analyics-------------------
