@@ -34,29 +34,28 @@ function useChart(data, options, type = "line") {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
-  // Create chart or recreate if `type` changes
   useEffect(() => {
-    if (chartRef.current) {
-      // Destroy existing instance before re-creating
-      if (chartInstance.current) {
-        chartInstance.current.destroy();
-      }
+    if (!chartRef.current) return;
 
-      chartInstance.current = new Chart(chartRef.current, {
-        type,
-        data,
-        options,
-      });
+    // Destroy old chart if exists
+    if (chartInstance.current) {
+      chartInstance.current.destroy();
     }
 
-    // Cleanup on unmount
+    // Don't create chart if data is invalid
+    if (!data || !data.labels || !data.labels.length) return;
+
+    chartInstance.current = new Chart(chartRef.current, {
+      type,
+      data,
+      options,
+    });
+
     return () => {
-      if (chartInstance.current) {
-        chartInstance.current.destroy();
-        chartInstance.current = null;
-      }
+      chartInstance.current?.destroy();
+      chartInstance.current = null;
     };
-  }, [type]); // Only re-create if `type` changes
+  }, [type, data]); // <= IMPORTANT!
 
   // Update data & options only
   useEffect(() => {

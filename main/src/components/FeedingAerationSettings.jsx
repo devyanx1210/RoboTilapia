@@ -1,23 +1,30 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { XCircle, Trash2 } from "lucide-react";
 
 export default function FeedingAerationSettings({
   operationDetails,
-  setOperationDetails,
   handleClearAll,
   onHardDeleteDetails,
   onClose,
   updateOperationDetails,
-  operationDetailsDB,
+  setLocalReadings,
+  onShowAdvanced,
+  showAdvanced,
 }) {
+  // Unified handler for instant input + Firebase sync
+  const handleReadingChange = (field, value) => {
+    setLocalReadings((prev) => ({ ...prev, [field]: value }));
+    updateOperationDetails({ [field]: value }); // instantly updates Firebase
+  };
+
+  console.log(operationDetails);
   return (
     <>
-      {/* Advanced Section */}
       <div className="relative w-[90%] mb-3 p-3 bg-white/60 rounded-lg space-y-3 overflow-y-auto max-h-[280px] border border-gray-300 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400">
-        {/* Close Button at Top-Right */}
+        {/* Close Button */}
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => onShowAdvanced(false)}
           className="absolute top-1 right-1 text-gray-500 hover:text-red-600"
         >
           <XCircle className="h-[clamp(10px,5vw,14px)] w-[clamp(10px,5vw,14px)]" />
@@ -33,12 +40,9 @@ export default function FeedingAerationSettings({
             min="0"
             placeholder="e.g., 200"
             value={operationDetails.numberOfFish || ""}
-            onChange={(e) => {
-              setOperationDetails({
-                ...operationDetails,
-                numberOfFish: e.target.value,
-              });
-            }}
+            onChange={(e) =>
+              handleReadingChange("numberOfFish", e.target.value)
+            }
             className="text-[clamp(10px,3vw,12px)] border border-gray-400 rounded-md p-2"
           />
 
@@ -48,23 +52,13 @@ export default function FeedingAerationSettings({
             step="0.01"
             placeholder="Fish Wt (kg)"
             value={operationDetails.fishWeight || ""}
-            onChange={(e) =>
-              setOperationDetails({
-                ...operationDetails,
-                fishWeight: e.target.value,
-              })
-            }
+            onChange={(e) => handleReadingChange("fishWeight", e.target.value)}
             className="text-[clamp(10px,3vw,12px)] border border-gray-400 rounded-md p-2"
           />
 
           <select
-            value={operationDetails.fishStage}
-            onChange={(e) =>
-              setOperationDetails({
-                ...operationDetails,
-                fishStage: e.target.value,
-              })
-            }
+            value={operationDetails.fishStage || ""}
+            onChange={(e) => handleReadingChange("fishStage", e.target.value)}
             className="border border-gray-400 rounded-md p-2 text-[clamp(10px,3vw,12px)]"
           >
             <option value="">Growth Stage</option>
@@ -82,13 +76,8 @@ export default function FeedingAerationSettings({
         </label>
         <div className="flex gap-2">
           <select
-            value={operationDetails.feedSize}
-            onChange={(e) =>
-              setOperationDetails({
-                ...operationDetails,
-                feedSize: e.target.value,
-              })
-            }
+            value={operationDetails.feedSize || ""}
+            onChange={(e) => handleReadingChange("feedSize", e.target.value)}
             className="feed-size text-[clamp(10px,3vw,12px)] border border-gray-400 rounded-md p-2 w-1/2"
           >
             <option value="">Select Size</option>
@@ -97,13 +86,8 @@ export default function FeedingAerationSettings({
             <option value="Large">Large</option>
           </select>
           <select
-            value={operationDetails.feedShape}
-            onChange={(e) =>
-              setOperationDetails({
-                ...operationDetails,
-                feedShape: e.target.value,
-              })
-            }
+            value={operationDetails.feedShape || ""}
+            onChange={(e) => handleReadingChange("feedShape", e.target.value)}
             className="feed-shape text-[clamp(10px,3vw,12px)] border border-gray-400 rounded-md p-2 w-1/2"
           >
             <option value="">Select Shape</option>
@@ -124,12 +108,9 @@ export default function FeedingAerationSettings({
             min="0"
             step="0.01"
             placeholder="Total Feed Used"
-            value={operationDetails.totalFeedUsed}
+            value={operationDetails.totalFeedUsed || ""}
             onChange={(e) =>
-              setOperationDetails({
-                ...operationDetails,
-                totalFeedUsed: e.target.value,
-              })
+              handleReadingChange("totalFeedUsed", e.target.value)
             }
             className="total-feed-used text-[clamp(10px,3vw,12px)] border border-gray-400 rounded-md p-2"
           />
@@ -138,12 +119,9 @@ export default function FeedingAerationSettings({
             min="0"
             step="0.01"
             placeholder="Stocking Wt"
-            value={operationDetails.stockingWeight}
+            value={operationDetails.stockingWeight || ""}
             onChange={(e) =>
-              setOperationDetails({
-                ...operationDetails,
-                stockingWeight: e.target.value,
-              })
+              handleReadingChange("stockingWeight", e.target.value)
             }
             className="stocking-weight text-[clamp(9px,3vw,10px)] border border-gray-400 rounded-md p-2"
           />
@@ -152,12 +130,9 @@ export default function FeedingAerationSettings({
             min="0"
             step="0.01"
             placeholder="Harvest Wt"
-            value={operationDetails.harvestWeight}
+            value={operationDetails.harvestWeight || ""}
             onChange={(e) =>
-              setOperationDetails({
-                ...operationDetails,
-                harvestWeight: e.target.value,
-              })
+              handleReadingChange("harvestWeight", e.target.value)
             }
             className="harvest-weight text-[clamp(9px,3vw,10px)] border border-gray-400 rounded-md p-2"
           />
@@ -178,13 +153,8 @@ export default function FeedingAerationSettings({
               type="number"
               min="0"
               placeholder={dim.replace("pond", "")}
-              value={operationDetails[dim]}
-              onChange={(e) =>
-                setOperationDetails({
-                  ...operationDetails,
-                  [dim]: e.target.value,
-                })
-              }
+              value={operationDetails[dim] || ""}
+              onChange={(e) => handleReadingChange(dim, e.target.value)}
               className={`${dim} text-[clamp(9px,3vw,10px)] border border-gray-400 rounded-md p-2`}
             />
           ))}
@@ -196,7 +166,6 @@ export default function FeedingAerationSettings({
             type="button"
             onClick={() => {
               handleClearAll();
-              onHardDeleteDetails();
             }}
             className="flex items-center gap-2 text-red-600 hover:text-red-800 text-[clamp(9px,3vw,10px)]"
           >

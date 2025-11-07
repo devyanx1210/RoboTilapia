@@ -121,11 +121,11 @@ function Dashboard() {
         <div className="flex flex-col flex-1 mt-[110px] overflow-y-auto text-[#232a2f]">
           <Outlet
             context={{
-              currentUser,
               readings,
               closeSignoutSideBar,
               signout,
               sidebar,
+              currentUser,
             }}
           />
         </div>
