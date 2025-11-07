@@ -23,20 +23,24 @@ import {
   useUpdateOperationDetails,
   usedeleteOperationDetails,
   useSaveOperationDetails,
+  useUpdateAllSchedule,
 } from "./utils.jsx";
 import FeedingAerationSettings from "./FeedingAerationSettings.jsx";
+import { getDatabase } from "firebase/database";
 
 function FeedingManagement() {
   const { readings } = useOutletContext();
-
-  const defaultFeedingSchedule = [
+  const [defaultFeedingSchedule, setDefaultFeedSched] = useState([
     { schedId: 1, time: "7:30", amount: 0.5 },
     { schedId: 2, time: "16:30", amount: 0.5 },
-  ];
-
+  ]);
   const feedingSchedules = useReadDatabase(
     "/machines/machine0/feedingSched/custom"
   );
+  const defaultFeedingScheduleDB = useReadDatabase(
+    "/machines/machine0/feedingSched/default"
+  );
+
   const operationDetailsDB = useReadDatabase(
     "/machines/machine0/operationDetails"
   );
@@ -49,6 +53,7 @@ function FeedingManagement() {
   const { updateOperationDetails } = useUpdateOperationDetails("machine0");
   const { deleteOperationDetails } = usedeleteOperationDetails("machine0");
   const { saveOperationDetails } = useSaveOperationDetails("machine0");
+  const { updateAllSchedule } = useUpdateAllSchedule("machine0");
 
   const [feedSched, setFeedSched] = useState({
     feedSched: "",
@@ -75,6 +80,16 @@ function FeedingManagement() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [schedArr, setSchedArr] = useState([]);
   const [count, setCount] = useState({ activeCount: 0, deletedCount: 0 });
+  // Local mirror for smooth typing experience
+
+  const [localReadings, setLocalReadings] = useState({});
+
+  // Sync from DB whenever Firebase data changes
+  useEffect(() => {
+    if (operationDetailsDB?.readings) {
+      setLocalReadings(operationDetailsDB.readings);
+    }
+  }, [operationDetailsDB?.readings]);
 
   // Auto-calc FCR: Total Feed Used / (Harvest Weight - Stocking Weight)
   useEffect(() => {
@@ -114,6 +129,7 @@ function FeedingManagement() {
     operationDetailsDB?.readings?.pondDepth,
   ]);
 
+  // Auto-calc feed per day
   const [feedRate, setFeedRate] = useState("");
   useEffect(() => {
     // Function to determine feed rate (% of body weight per day)
@@ -160,6 +176,12 @@ function FeedingManagement() {
     operationDetailsDB?.readings?.fishStage,
   ]);
 
+  useEffect(() => {
+    if (defaultFeedingScheduleDB.readings) {
+      setDefaultFeedSched(Object.values(defaultFeedingScheduleDB.readings));
+    }
+  }, [defaultFeedingScheduleDB.readings]);
+
   const handleAddSchedule = (e) => {
     e.preventDefault();
     const { feedSched: time, feedAmount } = feedSched;
@@ -170,11 +192,14 @@ function FeedingManagement() {
     setFeedSched({ feedSched: "", feedAmount: "" });
   };
 
+  // clear all operation details in firebase database
   const handleClearAll = () =>
-    setOperationDetails({
+    updateOperationDetails({
       numberOfFish: "",
       fishWeight: "",
       fishStage: "",
+      feedPerDay: "",
+      feedRate: "",
       feedSize: "",
       feedShape: "",
       totalFeedUsed: "",
@@ -314,28 +339,51 @@ function FeedingManagement() {
             </h2>
 
             {/* Toggle Advanced */}
-            <button
-              type="button"
-              onClick={() => {
-                if (showAdvanced) {
-                  saveOperationDetails(operationDetails); // save when advanced is shown
-                }
-                setShowAdvanced(!showAdvanced); // toggle advanced
-              }}
-              className="flex items-center gap-2 mb-3 text-[#002033] hover:text-cyan-700"
-            >
-              {showAdvanced ? (
-                <>
-                  <Save className="h-[clamp(12px,5vw,15px)] w-[clamp(12px,5vw,15px)] flex justify-start" />
-                  Save Details
-                </>
-              ) : (
-                <>
-                  <Edit3 className="h-[clamp(12px,5vw,15px)] w-[clamp(12px,5vw,15px)]" />
+            <div className="flex items-center gap-3 mb-3">
+              {/* Edit Details Button */}
+              {!showAdvanced && (
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(true)} // open advanced
+                  className="flex items-center gap-2 text-[#002033] hover:text-cyan-700"
+                >
+                  <Edit3 className="h-[clamp(10px,5vw,15px)] w-[clamp(10px,5vw,15px)]" />
                   Edit Details
-                </>
+                </button>
               )}
-            </button>
+
+              {/* Save Details Button */}
+              {showAdvanced && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    // Get total feed per day
+                    const totalFeed = parseFloat(localReadings.feedPerDay) || 0;
+                    if (!totalFeed || totalFeed <= 0) {
+                      alert("Please enter valid feed details first.");
+                      return;
+                    }
+
+                    // Calculate per-schedule amount (split evenly)
+                    const perFeedAmount = parseFloat(
+                      (totalFeed / defaultFeedingSchedule.length).toFixed(2)
+                    );
+                    setDefaultFeedSched([
+                      { schedId: 1, time: "7:30", amount: perFeedAmount },
+                      { schedId: 2, time: "16:30", amount: perFeedAmount },
+                    ]);
+
+                    updateOperationDetails(localReadings);
+                    updateAllSchedule(perFeedAmount);
+                    setShowAdvanced(false);
+                  }}
+                  className="flex items-center gap-2 text-[#002033] hover:text-green-700"
+                >
+                  <Save className="h-[clamp(10px,5vw,15px)] w-[clamp(10px,5vw,15px)]" />
+                  Save Details
+                </button>
+              )}
+            </div>
 
             {/* Summary */}
             {!showAdvanced && (
@@ -347,7 +395,7 @@ function FeedingManagement() {
             {/* Advanced Section */}
             {showAdvanced && (
               <FeedingAerationSettings
-                operationDetails={operationDetails}
+                operationDetails={localReadings}
                 setOperationDetails={setOperationDetails}
                 handleClearAll={handleClearAll}
                 onHardDeleteDetails={deleteOperationDetails}
@@ -355,6 +403,7 @@ function FeedingManagement() {
                 showAdvanced={showAdvanced}
                 operationDetailsDb={operationDetailsDB}
                 updateOperationDetails={updateOperationDetails}
+                setLocalReadings={setLocalReadings}
               />
             )}
 

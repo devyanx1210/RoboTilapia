@@ -121,7 +121,13 @@ function Dashboard() {
         {/* CONTENT SECTION */}
         <div className="flex flex-col flex-1 mt-[110px] overflow-y-auto text-[#232a2f]">
           <Outlet
-            context={{ readings, closeSignoutSideBar, signout, sidebar }}
+            context={{
+              readings,
+              closeSignoutSideBar,
+              signout,
+              sidebar,
+              currentUser,
+            }}
           />
         </div>
       </div>

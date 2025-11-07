@@ -25,6 +25,7 @@ import {
   update,
   remove,
   push,
+  get,
 } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -124,6 +125,57 @@ export function useUpdateSchedule(machineId = "machine0") {
     }
   };
   return { updateSchedule };
+}
+
+// Update all schedule
+export function useUpdateAllSchedule(machineId = "machine0") {
+  const updateAllSchedule = async (newAmount) => {
+    try {
+      const db = getDatabase(app);
+
+      // Fetch current schedules first
+      const defaultSnap = await get(
+        ref(db, `/machines/${machineId}/feedingSched/default`)
+      );
+
+      const customSnap = await get(
+        ref(db, `/machines/${machineId}/feedingSched/custom`)
+      );
+
+      if (!defaultSnap.exists() && !customSnap.exists()) {
+        console.warn("No schedules found to update.");
+        return;
+      }
+
+      const updates = {};
+
+      // Update all 'amount' fields in default schedule
+      if (defaultSnap.exists()) {
+        const defaultData = defaultSnap.val();
+        Object.keys(defaultData).forEach((key) => {
+          updates[`/machines/${machineId}/feedingSched/default/${key}/amount`] =
+            newAmount;
+        });
+      }
+
+      // Update all 'amount' fields in custom schedule
+      if (customSnap.exists()) {
+        const customData = customSnap.val();
+        Object.keys(customData).forEach((key) => {
+          updates[`/machines/${machineId}/feedingSched/custom/${key}/amount`] =
+            newAmount;
+        });
+      }
+
+      // Apply all updates in one call
+      await update(ref(db), updates);
+      console.log(`✅ All schedule amounts updated to ${newAmount}`);
+    } catch (error) {
+      console.error("Error updating schedules:", error);
+    }
+  };
+
+  return { updateAllSchedule };
 }
 
 // 🔹 Save operation details (overwrite or create new data)
